@@ -49,4 +49,30 @@ jobs:
           pip install -r /tmp/requirements-ci.txt -r requirements-dev.txt
 
       - name: Run pytest
-        run: pytest app/tests -q --tb=short
+        run: |
+          set -o pipefail
+          pytest app/tests -q --tb=short \
+            --cov-report=json:/tmp/coverage.json \
+            | tee /tmp/pytest.out
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Test result"
+            echo
+            # Final counts line, e.g. "5097 passed, 59 skipped in …"
+            line=$(grep -E '[0-9]+ (passed|failed|error)' /tmp/pytest.out 2>/dev/null | tail -n 1 || true)
+            if [ -n "$line" ]; then
+              if echo "$line" | grep -Eq '[1-9][0-9]* (failed|error)'; then
+                echo "✗ ${line}"
+              else
+                echo "✓ ${line}"
+              fi
+            else
+              echo "✗ pytest did not produce a summary (see Run pytest log)"
+            fi
+            if [ -f /tmp/coverage.json ]; then
+              python3 -c "import json; p=json.load(open('/tmp/coverage.json'))['totals']['percent_covered']; print(f'coverage {p:.1f}%')"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
