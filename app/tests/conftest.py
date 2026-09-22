@@ -157,6 +157,13 @@ def thermal_sdk_available():
 
 @pytest.fixture
 def testData():
+    # Fixture imagery/video live under app/tests/data (gitignored; unpack data.zip).
+    # Skip rather than fail so CI and fresh checkouts stay green without that tree.
+    data_root = os.path.join(os.path.dirname(__file__), 'data')
+    if not os.path.isdir(data_root):
+        pytest.skip(
+            "app/tests/data is not present (gitignored — unpack app/tests/data.zip)"
+        )
     return {
         'RGB_Input': os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests/data/rgb/input')),
         'RGB_Output': os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests/data/rgb/output')),
