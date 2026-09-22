@@ -227,6 +227,25 @@ class TestPrecedence:
             resolution = load_telemetry_for_video(video, None)
         assert resolution.source == SOURCE_NONE
 
+    def test_embedded_unlink_oserror_is_ignored(self, workspace):
+        tmp, video = workspace
+        extracted = _write(os.path.join(tmp, "extracted.srt"))
+        with patch(f"{RESOLVER}.find_embedded_telemetry_stream", return_value=3), \
+                patch(f"{RESOLVER}.extract_embedded_subtitles", return_value=extracted), \
+                patch(f"{RESOLVER}.os.unlink", side_effect=OSError("busy")):
+            resolution = load_telemetry_for_video(video, None)
+        assert resolution.source == SOURCE_EMBEDDED
+        assert resolution.found
+
+    def test_embedded_unparseable_track_reports_none(self, workspace):
+        tmp, video = workspace
+        extracted = _write(os.path.join(tmp, "empty.srt"), "not an srt")
+        with patch(f"{RESOLVER}.find_embedded_telemetry_stream", return_value=3), \
+                patch(f"{RESOLVER}.extract_embedded_subtitles", return_value=extracted):
+            resolution = load_telemetry_for_video(video, None)
+        assert resolution.source == SOURCE_NONE
+        assert not resolution.found
+
     def test_missing_explicit_file_is_reported(self, workspace):
         tmp, video = workspace
         resolution = load_telemetry_for_video(video, os.path.join(tmp, "gone.srt"))

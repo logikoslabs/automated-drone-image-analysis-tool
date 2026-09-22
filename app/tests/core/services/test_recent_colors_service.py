@@ -158,3 +158,16 @@ def test_singleton_pattern():
     service1 = get_recent_colors_service()
     service2 = get_recent_colors_service()
     assert service1 is service2
+
+
+def test_get_recent_matched_filter_colors(recent_colors_service, mock_settings_service):
+    mock_settings_service.get_setting.return_value = [{"selected_color": (1, 2, 3)}]
+    assert recent_colors_service.get_recent_matched_filter_colors() == [
+        {"selected_color": (1, 2, 3)}
+    ]
+    mock_settings_service.get_setting.assert_called_with("RecentMatchedFilterColors")
+
+
+def test_get_recent_list_non_list_returns_empty(recent_colors_service, mock_settings_service):
+    mock_settings_service.get_setting.return_value = "not-a-list"
+    assert recent_colors_service.get_recent_hsv_colors() == []

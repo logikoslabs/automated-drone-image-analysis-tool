@@ -2,6 +2,8 @@
 
 import numpy as np
 import pytest
+import cv2
+from unittest.mock import patch
 
 from algorithms.DetectionExpansion import (
     DEFAULT_HUE_EXPANSION,
@@ -263,3 +265,37 @@ def test_module_constants():
     assert DEFAULT_HUE_EXPANSION == 5
     assert DEFAULT_HUE_EXPANSION_SAT_FLOOR_PCT == 35
     assert DEFAULT_HUE_EXPANSION_VAL_FLOOR_PCT == 20
+
+
+def test_expand_threshold_returns_phase_a_when_seed_labels_empty():
+    expanded = np.zeros((10, 10), dtype=bool)
+    expanded[5, 5] = True
+    rect = [5, 5, 5, 5]
+    blank = np.zeros((10, 10), dtype=np.int32)
+    with patch("algorithms.DetectionExpansion.cv2.connectedComponents",
+               return_value=(1, blank)):
+        result = expand_threshold_mrmap(expanded, rect, (10, 10))
+    assert result[5, 5]
+    assert int(result.sum()) == 1
+
+
+def test_expand_hue_flood_returns_seed_when_seed_labels_empty():
+    seed = np.zeros((10, 10), dtype=bool)
+    seed[5, 5] = True
+    hue_ok = np.ones((10, 10), dtype=bool)
+    blank = np.zeros((10, 10), dtype=np.int32)
+    with patch("algorithms.DetectionExpansion.cv2.connectedComponents",
+               return_value=(1, blank)):
+        expanded, cap_hit = expand_hue_flood(seed, hue_ok, safety_cap=1000)
+    assert np.array_equal(expanded, seed)
+    assert cap_hit is False
+
+
+def test_convex_hull_falls_back_when_opencv_errors():
+    mask = np.zeros((10, 10), dtype=bool)
+    mask[2, 2] = True
+    mask[3, 4] = True
+    mask[5, 3] = True
+    with patch("algorithms.DetectionExpansion.cv2.convexHull",
+               side_effect=cv2.error("hull failed")):
+        assert convex_hull_area_from_mask(mask) == 3.0

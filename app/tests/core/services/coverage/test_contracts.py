@@ -43,6 +43,19 @@ def test_frame_index_shift_origin():
     assert fi.frames_at(4, 8) == [7]
 
 
+def test_frame_index_add_empty_mask_is_noop():
+    fi = FrameIndex(block_cells=4, max_per_block=8)
+    fi.add(1, 0, 0, np.zeros((4, 4), dtype=bool))
+    assert fi.frames_at(0, 0) == []
+
+
+def test_frame_index_shift_origin_noop_when_deltas_zero():
+    fi = FrameIndex(block_cells=4, max_per_block=8)
+    fi.add(7, 0, 0, np.ones((1, 1), dtype=bool))
+    fi.shift_origin(0, 0)
+    assert fi.frames_at(0, 0) == [7]
+
+
 def test_coverage_result_sample():
     # Small EPSG:3857 grid near the Sierra foothills.
     minx, miny = lonlat_to_mercator(-120.50, 38.70)

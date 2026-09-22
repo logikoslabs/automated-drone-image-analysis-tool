@@ -125,3 +125,9 @@ def test_the_threshold_is_binary(service, tmp_path):
     assert set(np.unique(scaled)) <= {0, 255}
     assert service.contains((7, 5), 10, 10) is True    # 137 > 127
     assert service.contains((2, 5), 10, 10) is False   # 100 <= 127
+
+
+def test_path_property_tracks_set_mask(service, mask_file):
+    assert service.path is None
+    service.set_mask_path(mask_file)
+    assert service.path == mask_file

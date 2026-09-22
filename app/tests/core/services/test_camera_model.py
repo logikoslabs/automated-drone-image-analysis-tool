@@ -94,6 +94,19 @@ def test_invalid_construction_raises():
         CameraModel(0.0, -90.0, 0.0, FOCAL_MM, SENSOR_W, SENSOR_H, WIDTH, HEIGHT)
     with pytest.raises(ValueError):
         CameraModel(AGL, -90.0, 0.0, FOCAL_MM, SENSOR_W, SENSOR_H, 0, HEIGHT)
+    with pytest.raises(ValueError):
+        CameraModel(AGL, -90.0, 0.0, 0.0, SENSOR_W, SENSOR_H, WIDTH, HEIGHT)
+
+
+def test_pixel_to_ground_returns_none_for_level_or_upward_ray():
+    # Looking horizontally, the centre ray does not descend to the ground plane.
+    cam = CameraModel(AGL, 0.0, 0.0, FOCAL_MM, SENSOR_W, SENSOR_H, WIDTH, HEIGHT)
+    assert cam.pixel_to_ground(WIDTH / 2.0, HEIGHT / 2.0) is None
+
+
+def test_pixel_to_ground_returns_none_when_intersection_is_behind():
+    cam = _nadir()
+    assert cam.pixel_to_ground(WIDTH / 2.0, HEIGHT / 2.0, ground_down=-1.0) is None
 
 
 def test_from_image_service():

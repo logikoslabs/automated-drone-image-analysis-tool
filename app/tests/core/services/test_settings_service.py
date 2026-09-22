@@ -89,3 +89,28 @@ def test_migrate_old_settings_already_migrated():
 
         # Verify allKeys was never called on old settings (migration skipped)
         mock_old_settings.allKeys.assert_not_called()
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (True, True),
+    (False, False),
+    (None, False),
+    ("true", True),
+    ("1", True),
+    ("yes", True),
+    ("on", True),
+    ("false", False),
+    ("0", False),
+    ("no", False),
+    ("off", False),
+    ("maybe", False),  # unknown string -> default
+    (2, True),         # truthy non-string
+])
+def test_get_bool_setting_coerces_common_forms(settings_service, raw, expected):
+    with patch.object(settings_service, "get_setting", return_value=raw):
+        assert settings_service.get_bool_setting("flag", False) is expected
+
+
+def test_get_bool_setting_none_uses_explicit_default(settings_service):
+    with patch.object(settings_service, "get_setting", return_value=None):
+        assert settings_service.get_bool_setting("flag", True) is True

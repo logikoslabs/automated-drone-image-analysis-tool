@@ -75,3 +75,32 @@ def test_add_fills_empty_slots():
     colors = svc.get_custom_colors()
     assert (10, 20, 30) in colors
     assert (40, 50, 60) in colors
+
+
+def test_load_from_settings_ignores_corrupt_json(monkeypatch):
+    svc = CustomColorsService()
+    svc.settings_service.set_setting("custom_colors", "{not-json")
+    svc._load_from_settings()  # should not raise
+
+
+def test_add_custom_color_rgb_shifts_when_full():
+    svc = CustomColorsService()
+    svc._colors = [[i, i + 1, i + 2] for i in range(svc.MAX_CUSTOM_COLORS)]
+    idx = svc.add_custom_color_rgb((200, 201, 202))
+    assert idx == 0
+    assert svc._colors[0] == [200, 201, 202]
+
+
+def test_add_custom_color_legacy_rejects_invalid_qcolor():
+    from PySide6.QtGui import QColor
+    svc = CustomColorsService()
+    assert svc.add_custom_color(QColor()) == -1
+
+
+def test_add_custom_color_legacy_accepts_valid_qcolor():
+    from PySide6.QtGui import QColor
+    svc = CustomColorsService()
+    svc._colors = [None] * svc.MAX_CUSTOM_COLORS
+    idx = svc.add_custom_color(QColor(1, 2, 3))
+    assert idx >= 0
+    assert svc._colors[idx] == [1, 2, 3]

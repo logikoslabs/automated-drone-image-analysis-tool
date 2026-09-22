@@ -37,6 +37,14 @@ def test_falls_back_to_system_locale_when_unset():
     assert resolve_language('', system_locale_name='nl_NL') == 'nl'
 
 
+def test_falls_back_to_qlocale_system_when_locale_arg_omitted(monkeypatch):
+    class _Loc:
+        def name(self):
+            return 'it_IT'
+    monkeypatch.setattr(TranslationHelper.QLocale, 'system', staticmethod(lambda: _Loc()))
+    assert resolve_language(None, system_locale_name=None) == 'it'
+
+
 def test_unsupported_saved_language_falls_through_to_system():
     assert resolve_language('fr', system_locale_name='it_IT') == 'it'
 
@@ -133,3 +141,26 @@ def test_supported_languages_shape():
     assert DEFAULT_LANGUAGE == 'en'
     assert 'en' in SUPPORTED_LANGUAGES
     assert set(SUPPORTED_LANGUAGES) == {'en', 'es', 'it', 'nl'}
+
+
+def test_translation_mixin_tr_and_non_widget_apply(app):
+    from PySide6.QtWidgets import QLabel, QWidget
+    from helpers.TranslationMixin import TranslationMixin
+
+    class Plain(TranslationMixin):
+        pass
+
+    class Host(TranslationMixin, QWidget):
+        pass
+
+    plain = Plain()
+    assert plain.tr("Hello") == "Hello"
+    plain._apply_translations()  # non-QWidget early return
+
+    host = Host()
+    child = QWidget(host)
+    child.setWindowTitle("ChildWin")
+    label = QLabel("Lbl", host)
+    host._apply_translations()
+    assert child.windowTitle()
+    assert label.text()

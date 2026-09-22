@@ -11,7 +11,12 @@ import csv
 import os
 from pathlib import Path
 from unittest.mock import patch
-from core.services.color.ColorListService import get_predefined_colors
+from core.services.color.ColorListService import (
+    get_predefined_colors,
+    _app_root,
+    _pkl_path,
+    _csv_path,
+)
 
 
 def test_get_predefined_colors_from_pickle():
@@ -90,3 +95,9 @@ def test_get_predefined_colors_csv_invalid_row():
             assert len(colors) == 2
             assert colors[0]['name'] == 'Red'
             assert colors[1]['name'] == 'Blue'
+
+
+def test_path_helpers_resolve_under_app_root():
+    assert _pkl_path().name == "colors.pkl"
+    assert _csv_path().name == "colors.csv"
+    assert (_app_root() / "core").is_dir() or (_app_root() / "helpers").is_dir()

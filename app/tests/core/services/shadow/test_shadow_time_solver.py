@@ -86,3 +86,11 @@ def test_naive_capture_time_rejected():
     with pytest.raises(ValueError):
         solve_time_for_shadow_azimuth(
             _LAT, _LON, datetime(2026, 6, 15, 17, 0), 45.0)
+
+
+def test_refine_skips_samples_below_min_elevation(monkeypatch):
+    import core.services.shadow.ShadowTimeSolver as solver_mod
+    from datetime import timedelta
+
+    monkeypatch.setattr(solver_mod, "MIN_SUN_ELEVATION_DEG", 91.0)
+    assert solver_mod._refine(_LAT, _LON, datetime(2026, 6, 15, 17, 0, tzinfo=timezone.utc), 45.0) is None

@@ -6,6 +6,8 @@ Tests Ground Sampling Distance calculations.
 
 import pytest
 import numpy as np
+from unittest.mock import MagicMock, patch
+
 from core.services.GSDService import GSDService
 
 
@@ -119,3 +121,32 @@ def test_compute_ground_distance(gsd_service):
     assert dist_y is not None
     assert isinstance(dist_x, (int, float, np.floating))
     assert isinstance(dist_y, (int, float, np.floating))
+
+
+def test_compute_gsd_returns_none_when_ray_misses_ground():
+    # Look-away geometry: ground intersection fails for both sample rays.
+    service = GSDService(
+        focal_length=24.0,
+        image_size=(100, 100),
+        altitude=10.0,
+        tilt_angle=120.0,
+        sensor=(23.5, 15.6),
+    )
+    assert service.compute_gsd(0, 0) is None
+
+
+def test_compute_average_gsd_returns_none_when_no_valid_rows():
+    service = GSDService(
+        focal_length=24.0,
+        image_size=(40, 40),
+        altitude=5.0,
+        tilt_angle=120.0,
+        sensor=(23.5, 15.6),
+    )
+    assert service.compute_average_gsd() is None
+
+
+def test_average_between_points_and_ground_distance_propagate_none(gsd_service):
+    with patch.object(gsd_service, "compute_gsd", return_value=None):
+        assert gsd_service.compute_average_gsd_between_points(0, 0, 1, 1) is None
+        assert gsd_service.compute_ground_distance(0, 0, 1, 1) is None

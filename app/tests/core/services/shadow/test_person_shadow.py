@@ -71,3 +71,14 @@ def test_no_shadow_when_sun_below_horizon():
     points = [(0.0, 0.0, 2.0)]
     assert compute_shadow_ground_points(
         points, (0.0, 0.0, 100.0), -1.0, 0.0) == []
+
+
+def test_shadow_length_zero_when_denom_vanishes():
+    # tan(45°) + slope(-1) == 0 → no usable shadow length.
+    assert shadow_length(1.8, 45.0, slope=-1.0) == 0.0
+
+
+def test_no_ground_points_when_denom_vanishes():
+    points = [(0.0, 0.0, 2.0)]
+    assert compute_shadow_ground_points(
+        points, (0.0, 0.0, 100.0), 45.0, 0.0, slope=-1.0) == []

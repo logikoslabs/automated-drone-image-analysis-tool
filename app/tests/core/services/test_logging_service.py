@@ -178,3 +178,12 @@ def test_runtime_hook_preserves_operator_override():
     with patch.dict(os.environ, {'ADIAT_LOG_LEVEL': 'DEBUG'}):
         exec(src, {})
         assert os.environ['ADIAT_LOG_LEVEL'] == 'DEBUG'
+
+
+def test_resolve_console_log_level_honours_env():
+    from core.services.LoggerService import resolve_console_log_level
+    with patch.dict(os.environ, {'ADIAT_CONSOLE_LOG_LEVEL': 'ERROR'}):
+        assert resolve_console_log_level() == logging.ERROR
+    with patch.dict(os.environ, {'ADIAT_CONSOLE_LOG_LEVEL': ''}, clear=False):
+        os.environ.pop('ADIAT_CONSOLE_LOG_LEVEL', None)
+        assert resolve_console_log_level() == logging.WARNING

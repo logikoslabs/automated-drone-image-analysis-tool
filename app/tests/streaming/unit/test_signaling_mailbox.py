@@ -148,3 +148,42 @@ def test_post_answer_emits_answer_to_mobile_subscriber() -> None:
         assert observed[-1]["sdp"] == "v=0...answer"
 
     run(scenario())
+
+
+def test_subscribe_returns_on_timeout() -> None:
+    async def scenario():
+        ch = InMemorySignalingChannel(ttl_seconds=0.05)
+        messages = [msg async for msg in ch.subscribe("TMOUT1", "desktop")]
+        assert messages == []
+
+    run(scenario())
+
+
+def test_subscribe_returns_when_session_deleted() -> None:
+    async def scenario():
+        ch = InMemorySignalingChannel()
+
+        async def collect():
+            return [msg async for msg in ch.subscribe("DELSESS", "desktop")]
+
+        collector = asyncio.create_task(collect())
+        await asyncio.sleep(0)  # let subscribe register its mailbox
+        await ch.delete_session("DELSESS")
+        assert await asyncio.wait_for(collector, timeout=1.0) == []
+
+    run(scenario())
+
+
+def test_close_wakes_subscribers() -> None:
+    async def scenario():
+        ch = InMemorySignalingChannel()
+
+        async def collect():
+            return [msg async for msg in ch.subscribe("CLOSE1", "desktop")]
+
+        collector = asyncio.create_task(collect())
+        await asyncio.sleep(0)
+        await ch.close()
+        assert await asyncio.wait_for(collector, timeout=1.0) == []
+
+    run(scenario())

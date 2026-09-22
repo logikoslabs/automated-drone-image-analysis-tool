@@ -42,3 +42,18 @@ def test_generate_zip_file_with_missing_files(zip_service, example_file_paths, e
 
         mock_zipfile.assert_called_once_with(example_output_path, 'w')
         mock_zip_instance.write.assert_called_once_with(example_file_paths[0], os.path.basename(example_file_paths[0]))
+
+
+def test_generate_zip_from_directory_preserves_relative_paths(zip_service, tmp_path):
+    root = tmp_path / "bundle"
+    nested = root / "sub"
+    nested.mkdir(parents=True)
+    (root / "a.txt").write_text("a")
+    (nested / "b.txt").write_text("b")
+    out = tmp_path / "out.zip"
+
+    zip_service.generate_zip_from_directory(str(root), str(out))
+
+    with zipfile.ZipFile(out, "r") as zf:
+        names = set(zf.namelist())
+    assert names == {"a.txt", os.path.join("sub", "b.txt")}

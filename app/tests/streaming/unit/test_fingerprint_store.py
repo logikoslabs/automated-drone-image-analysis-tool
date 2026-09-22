@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from core.services.streaming.FingerprintStore import (  # noqa: E402
     FingerprintStore,
     PeerRecord,
+    _default_db_path,
 )
 
 
@@ -84,3 +85,13 @@ def test_record_pairing_rejects_empty_args(store) -> None:
         store.record_pairing("", "fp")
     with pytest.raises(ValueError):
         store.record_pairing("Tablet", "")
+
+
+def test_default_db_path_linux_uses_xdg(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    from unittest.mock import patch
+    import platform
+    with patch.object(platform, "system", return_value="Linux"), \
+            patch.object(sys, "platform", "linux"):
+        path = _default_db_path()
+    assert path == tmp_path / "ADIAT" / "flight_viewer_peers.sqlite"

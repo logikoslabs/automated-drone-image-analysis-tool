@@ -15,6 +15,10 @@ class TestDetectionMath:
         """IoU should be zero for non-overlapping boxes."""
         assert bbox_iou((0, 0, 10, 10), (20, 20, 5, 5)) == 0.0
 
+    def test_bbox_iou_zero_area_boxes(self):
+        """Degenerate zero-area boxes yield IoU 0 (union <= 0 guard)."""
+        assert bbox_iou((0, 0, 0, 10), (0, 0, 0, 10)) == 0.0
+
     def test_centroid_distance(self):
         """Centroid distance should follow Euclidean metric."""
         assert centroid_distance((0, 0), (3, 4)) == 5.0

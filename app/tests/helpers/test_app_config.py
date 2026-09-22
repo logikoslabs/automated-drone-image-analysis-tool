@@ -9,8 +9,10 @@ the contract here is part of the operator-facing API surface.
 from __future__ import annotations
 
 import os
+import platform
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -74,3 +76,11 @@ def test_get_config_path_returns_platform_specific_location() -> None:
     # named ``config.toml`` and sits inside an ``ADIAT`` directory.
     assert path.name == "config.toml"
     assert path.parent.name == "ADIAT"
+
+
+def test_get_config_path_linux_uses_xdg_config_home(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    with patch.object(platform, "system", return_value="Linux"), \
+            patch.object(sys, "platform", "linux"):
+        path = get_config_path()
+    assert path == tmp_path / "ADIAT" / "config.toml"

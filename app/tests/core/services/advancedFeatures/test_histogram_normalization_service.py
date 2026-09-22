@@ -59,3 +59,27 @@ def test_matchHistograms(mock_reference_image, mock_source_image):
         result = service.match_histograms(mock_image_array_src)
         mock_match_histograms.assert_called_once_with(mock_image_array_src, mock_image_array_ref, channel_axis=-1)
         assert np.array_equal(result, mock_image_array_src)
+
+
+def test_init_raises_when_imdecode_returns_none():
+    with patch("PIL.Image.open") as mock_open, \
+            patch("numpy.fromfile", return_value=np.zeros(10, dtype=np.uint8)), \
+            patch("cv2.imdecode", return_value=None):
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        with pytest.raises(Exception, match="Could not load reference image"):
+            HistogramNormalizationService("any.jpg")
+
+
+def test_match_histograms_logs_and_reraises():
+    mock_path = "app/tests/data/rgb/input/DJI_0084.JPG"
+    ref = np.zeros((8, 8, 3), dtype=np.uint8)
+    with patch("PIL.Image.open") as mock_open, \
+            patch("numpy.fromfile", return_value=ref.tobytes()), \
+            patch("cv2.imdecode", return_value=ref):
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        service = HistogramNormalizationService(mock_path)
+    with patch("skimage.exposure.match_histograms", side_effect=RuntimeError("boom")), \
+            patch.object(service.logger, "error") as mock_error:
+        with pytest.raises(RuntimeError, match="boom"):
+            service.match_histograms(ref)
+        mock_error.assert_called_once()

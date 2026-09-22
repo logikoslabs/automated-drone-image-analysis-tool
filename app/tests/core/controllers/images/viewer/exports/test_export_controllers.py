@@ -490,14 +490,36 @@ def test_api_publisher_passes_credentials_through(app):
     """The API publisher keeps the credential plumbing out of the worker."""
     api_service = MagicMock()
     api_service.add_marker_via_api.return_value = (True, 'm1')
+    api_service.add_polygon_via_api.return_value = (True, 'p1')
+    api_service.upload_photo_via_api.return_value = (True, 'media1')
 
     publisher = CalTopoApiPublisher(api_service, 'MAP1', 'TEAM', 'CRED', 'SECRET')
-    marker = {'lat': 1.0, 'lon': 2.0, 'title': 'AOI 1'}
+    marker = {'lat': 1.0, 'lon': 2.0, 'title': 'AOI 1', 'image_path': 'photo.jpg',
+              'description': 'd'}
+    polygon = {'coords': [[1, 2], [3, 4]]}
 
     assert publisher.add_marker(marker) == (True, 'm1')
     api_service.add_marker_via_api.assert_called_once_with(
         'MAP1', 'TEAM', 'CRED', 'SECRET', marker
     )
+    assert publisher.add_polygon(polygon) == (True, 'p1')
+    api_service.add_polygon_via_api.assert_called_once_with(
+        'MAP1', 'TEAM', 'CRED', 'SECRET', polygon
+    )
+    assert publisher.upload_photo(marker, 'm1') == (True, 'media1')
+    api_service.upload_photo_via_api.assert_called_once_with(
+        'MAP1', 'TEAM', 'CRED', 'SECRET', 'photo.jpg', 1.0, 2.0,
+        title='AOI 1', description='d', marker_id='m1'
+    )
+
+
+def test_browser_publisher_add_polygon(app):
+    service = MagicMock()
+    service.add_shape_to_map.return_value = (True, 's1')
+    publisher = CalTopoBrowserPublisher(service, 'MAP1')
+    polygon = {'coords': [[1, 2], [3, 4]]}
+    assert publisher.add_polygon(polygon) == (True, 's1')
+    service.add_shape_to_map.assert_called_once_with('MAP1', polygon)
 
 
 def test_browser_export_publishes_over_http_not_javascript(app, mock_viewer):

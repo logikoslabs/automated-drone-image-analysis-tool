@@ -245,3 +245,13 @@ def test_finalize_stamps_no_looks_on_never_looked_cells():
     assert np.any(look == 0)                    # there really are unseen cells
     assert np.all(limiting[look == 0] == LIMIT_NO_LOOKS)
     assert np.all(limiting[look > 0] == LIMIT_CANOPY)
+
+
+def test_contains_returns_false_when_integer_offset_raises():
+    from unittest.mock import patch
+    acc, _ = _fresh()
+    spec = _spec()
+    acc.add_frame(0, _const_pod(spec, 0.5), spec, 0.0, -90.0, 1.0)
+    with patch("core.services.coverage.accumulator.integer_offset",
+               side_effect=ValueError("incompatible")):
+        assert acc._contains(spec) is False

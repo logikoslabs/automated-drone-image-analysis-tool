@@ -74,3 +74,37 @@ def test_apply_boolean_mask_highlight_blends_highlight_color(test_image):
 
     assert np.array_equal(highlighted[0, 0], test_image[0, 0])
     assert not np.array_equal(highlighted[100, 100], test_image[100, 100])
+
+
+def test_apply_mask_highlight_missing_path_returns_original(test_image):
+    out = ImageHighlightService.apply_mask_highlight(test_image, "")
+    assert out is test_image
+    out = ImageHighlightService.apply_mask_highlight(test_image, "/no/such/mask.png")
+    assert out is test_image
+
+
+def test_apply_mask_highlight_png(tmp_path, test_image):
+    import cv2
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    mask[80:120, 80:120] = 255
+    path = tmp_path / "mask.png"
+    cv2.imwrite(str(path), mask)
+    out = ImageHighlightService.apply_mask_highlight(test_image, str(path), (255, 0, 0))
+    assert out.shape == test_image.shape
+    assert not np.array_equal(out[100, 100], test_image[100, 100])
+
+
+def test_apply_mask_highlight_resizes_and_accepts_tiff(tmp_path, test_image):
+    import tifffile
+    mask = np.zeros((50, 50), dtype=np.uint8)
+    mask[10:40, 10:40] = 255
+    path = tmp_path / "mask.tif"
+    tifffile.imwrite(str(path), mask)
+    out = ImageHighlightService.apply_mask_highlight(test_image, str(path))
+    assert out.shape == test_image.shape
+
+
+def test_apply_mask_highlight_returns_original_when_imread_fails(test_image):
+    with patch("cv2.imread", return_value=None):
+        out = ImageHighlightService.apply_mask_highlight(test_image, "x.png")
+    assert out is test_image

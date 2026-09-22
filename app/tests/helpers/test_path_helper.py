@@ -18,6 +18,7 @@ from helpers.PathHelper import (
     is_absolute_any_platform,
     normalize_filename_key,
     path_match_key,
+    split_path_components,
 )
 
 
@@ -348,3 +349,8 @@ def test_index_uses_os_sep_paths(tmp_path):
     (tmp_path / "a.jpg").write_text("x")
     index = index_folder_by_filename(str(tmp_path))
     assert all(os.path.isabs(p) for p in index[normalize_filename_key("a.jpg")])
+
+
+def test_split_path_components_empty_returns_empty_list():
+    assert split_path_components("") == []
+    assert split_path_components(None) == []

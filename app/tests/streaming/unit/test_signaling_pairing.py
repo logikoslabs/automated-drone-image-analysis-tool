@@ -80,6 +80,11 @@ def test_normalize_pairing_code_rejects_wrong_length() -> None:
         pairing.normalize_pairing_code("ABCDEFG")  # too long
 
 
+def test_normalize_pairing_code_rejects_none() -> None:
+    with pytest.raises(ValueError, match="required"):
+        pairing.normalize_pairing_code(None)
+
+
 # ----------------------------------------------------------------------
 # SAS wordlist + algorithm structure
 # ----------------------------------------------------------------------
@@ -161,6 +166,11 @@ def test_sas_word_count_is_configurable() -> None:
     sas = pairing.derive_sas_words(_FP_A, _FP_B, count=2)
     assert len(sas) == 2
     assert all(w in pairing.SAS_WORDLIST for w in sas)
+
+
+def test_sas_zero_or_negative_count_returns_empty() -> None:
+    assert pairing.derive_sas_words(_FP_A, _FP_B, count=0) == []
+    assert pairing.derive_sas_words(_FP_A, _FP_B, count=-1) == []
 
 
 def test_sas_rejects_empty_fingerprint() -> None:

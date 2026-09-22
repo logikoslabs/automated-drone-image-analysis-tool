@@ -528,3 +528,39 @@ def test_factory_builds_3dep_when_files_exist(tmp_path):
 
     provider = TerrainProviderFactory.create('usgs_3dep_local', settings)
     assert provider.get_provider_kind() == 'local_geotiff'
+
+
+def test_factory_falls_back_when_3dep_paths_unset():
+    from core.services.terrain.TerrainProviderFactory import TerrainProviderFactory
+    from core.services.terrain.ElevationProvider import TerrariumProvider
+
+    settings = MagicMock()
+    settings.get_setting.return_value = ''
+    assert isinstance(TerrainProviderFactory.create('usgs_3dep_local', settings), TerrariumProvider)
+
+
+def test_factory_falls_back_on_unknown_provider_id():
+    from core.services.terrain.TerrainProviderFactory import TerrainProviderFactory
+    from core.services.terrain.ElevationProvider import TerrariumProvider
+
+    settings = MagicMock()
+    assert isinstance(TerrainProviderFactory.create('not-a-provider', settings), TerrariumProvider)
+
+
+def test_factory_falls_back_when_3dep_constructor_raises(tmp_path):
+    from core.services.terrain.TerrainProviderFactory import TerrainProviderFactory
+    from core.services.terrain.ElevationProvider import TerrariumProvider
+
+    manifest = tmp_path / "dem_manifest.csv"
+    manifest.write_text("filename,minX,minY,maxX,maxY\n")
+    settings = MagicMock()
+    settings.get_setting.side_effect = lambda k, d='': {
+        'Terrain3DEPManifestPath': str(manifest),
+        'Terrain3DEPTilesDir': str(tmp_path),
+    }.get(k, d)
+    with patch("core.services.terrain.USGS3DEPProvider.USGS3DEPProvider",
+               side_effect=RuntimeError("bad tiles")):
+        assert isinstance(
+            TerrainProviderFactory.create('usgs_3dep_local', settings),
+            TerrariumProvider,
+        )

@@ -12,6 +12,7 @@ many. It resolved correctly by coincidence of depth, not by design.
 """
 
 import os
+import sys
 from pathlib import Path
 
 from core.services.export import LeafletAssetService
@@ -112,3 +113,37 @@ def test_asset_loading_is_cached():
     avoiding."""
     assert load_leaflet_assets() is load_leaflet_assets()
     assert os.path.exists(LeafletAssetService.__file__)
+
+
+def test_vendor_dir_uses_meipass_when_frozen(monkeypatch, tmp_path):
+    leaflet = tmp_path / "resources" / "vendor" / "leaflet"
+    leaflet.mkdir(parents=True)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    assert LeafletAssetService._vendor_dir() == leaflet
+
+
+def test_load_leaflet_assets_returns_none_on_oserror(monkeypatch, tmp_path):
+    load_leaflet_assets.cache_clear()
+    monkeypatch.setattr(LeafletAssetService, "_vendor_dir", lambda: tmp_path / "missing")
+    try:
+        assert load_leaflet_assets() == (None, None)
+    finally:
+        load_leaflet_assets.cache_clear()
+
+
+def test_load_leaflet_assets_returns_none_when_empty(monkeypatch, tmp_path):
+    load_leaflet_assets.cache_clear()
+    (tmp_path / "leaflet.css").write_text("   ", encoding="utf-8")
+    (tmp_path / "leaflet.js").write_text("\n", encoding="utf-8")
+    monkeypatch.setattr(LeafletAssetService, "_vendor_dir", lambda: tmp_path)
+    try:
+        assert load_leaflet_assets() == (None, None)
+    finally:
+        load_leaflet_assets.cache_clear()
+
+
+def test_inline_css_leaves_url_when_image_unreadable(tmp_path):
+    css = "background: url(images/missing-marker.png);"
+    out = LeafletAssetService._inline_css_images(css, tmp_path)
+    assert "url(images/missing-marker.png)" in out

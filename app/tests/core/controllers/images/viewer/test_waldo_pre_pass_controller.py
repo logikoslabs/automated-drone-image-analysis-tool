@@ -283,3 +283,54 @@ def test_flight_log_missing_remembered_file_falls_back_to_discovery(monkeypatch,
     # The remembered file is gone: not auto mode, discovery candidates offered.
     assert dlg.auto_apply is False
     assert dlg.candidate_logs == [str(fresh)]
+
+
+# --- Direct decision-helper edge cases (corrupt JSON / clear) -----------------
+
+from core.services.waldo.WaldoClockDecisions import (  # noqa: E402
+    get_decisions as get_clock_decisions,
+    get_decision as get_clock_decision,
+)
+from core.services.waldo.WaldoFlightLogDecisions import (  # noqa: E402
+    clear_decision as clear_flight_decision,
+    get_decisions as get_flight_decisions,
+    store_decision as store_flight_decision,
+)
+
+
+def test_clock_decisions_corrupt_json_returns_empty():
+    settings = _FakeSettings()
+    settings.values[CLOCK_DECISIONS_SETTING] = "{not-json"
+    assert get_clock_decisions(settings) == {}
+
+
+def test_clock_decisions_non_dict_json_returns_empty():
+    settings = _FakeSettings()
+    settings.values[CLOCK_DECISIONS_SETTING] = json.dumps([1, 2, 3])
+    assert get_clock_decisions(settings) == {}
+    assert get_clock_decision("any", settings) is None
+
+
+def test_flight_log_decisions_corrupt_json_returns_empty():
+    settings = _FakeSettings()
+    settings.values[FLIGHTLOG_DECISIONS_SETTING] = "{not-json"
+    assert get_flight_decisions(settings) == {}
+
+
+def test_flight_log_clear_decision_removes_folder_key():
+    settings = _FakeSettings()
+    store_flight_decision("folder-a", {"decision": "declined"}, settings)
+    store_flight_decision("folder-b", {"decision": "declined"}, settings)
+    clear_flight_decision("folder-a", settings)
+    remaining = get_flight_decisions(settings)
+    assert "folder-a" not in remaining
+    assert remaining["folder-b"] == {"decision": "declined"}
+
+
+def test_flight_log_clear_decision_missing_key_is_noop():
+    settings = _FakeSettings()
+    store_flight_decision("folder-a", {"decision": "declined"}, settings)
+    clear_flight_decision("missing", settings)
+    assert get_flight_decisions(settings) == {
+        "folder-a": {"decision": "declined"},
+    }

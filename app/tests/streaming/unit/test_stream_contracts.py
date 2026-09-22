@@ -1,6 +1,12 @@
 """Unit tests for streaming contracts."""
 
-from core.services.streaming.StreamingUtils import StageTimings
+import numpy as np
+
+from core.services.streaming.StreamingUtils import (
+    FrameQueue,
+    PerformanceMetrics,
+    StageTimings,
+)
 from core.services.streaming.contracts import StreamDetection, StreamProcessResult
 
 
@@ -64,3 +70,34 @@ def test_stream_process_result_detection_dicts_maps_detections():
     assert len(payloads) == 2
     assert payloads[0]["class_name"] == "A"
     assert payloads[1]["class_name"] == "B"
+
+
+def test_frame_queue_drops_stale_frames_and_counts_them():
+    queue = FrameQueue()
+    first = np.zeros((4, 4, 3), dtype=np.uint8)
+    second = np.ones((4, 4, 3), dtype=np.uint8)
+    assert queue.put(first, 1.0) is False
+    assert queue.put(second, 2.0) is True
+    assert queue.get_dropped_count() == 1
+    frame, ts = queue.get()
+    assert ts == 2.0
+    assert frame is not None
+    assert np.array_equal(frame, second)
+    assert queue.is_empty()
+    assert queue.get() == (None, 0.0)
+    assert queue.reset_dropped_count() == 1
+    assert queue.get_dropped_count() == 0
+
+
+def test_performance_metrics_update_and_to_dict():
+    metrics = PerformanceMetrics(max_recent_samples=2)
+    metrics.update(StageTimings(total_ms=10.0, detection_ms=4.0), detection_count=2)
+    metrics.update(StageTimings(total_ms=20.0, detection_ms=6.0), detection_count=3)
+    metrics.update(StageTimings(total_ms=30.0, detection_ms=8.0), detection_count=1)
+    assert metrics.frame_count == 3
+    assert metrics.detection_count == 1
+    assert len(metrics.recent_timings) == 2
+    payload = metrics.to_dict()
+    assert payload["frame_count"] == 3
+    assert "timings" in payload
+    assert "average_timings" in payload

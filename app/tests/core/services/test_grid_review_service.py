@@ -97,6 +97,11 @@ def test_suggest_grid_returns_none_with_bad_dimensions():
     assert GridReviewService.suggest_grid(8000, 6000, 2.0, 0, 1080) is None
 
 
+def test_suggest_grid_returns_none_when_person_height_non_positive():
+    assert GridReviewService.suggest_grid(
+        8000, 6000, 2.0, 1920, 1080, person_height_cm=0) is None
+
+
 def test_suggest_grid_coarser_gsd_means_more_cells():
     """Coarser GSD = fewer pixels on the person = smaller cells needed."""
     fine = GridReviewService.suggest_grid(8000, 6000, 0.5, 1920, 1080)

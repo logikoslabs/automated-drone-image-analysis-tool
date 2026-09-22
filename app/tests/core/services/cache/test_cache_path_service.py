@@ -7,7 +7,7 @@ Tests cache path detection and management.
 import pytest
 import tempfile
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 from core.services.cache.CachePathService import CachePathService
 
@@ -60,3 +60,35 @@ def test_update_cache_paths(cache_path_service):
 
         # Verify paths were updated
         assert mock_viewer.gallery_controller.model.dataset_dir == Path(tmpdir)
+
+
+def test_get_missing_caches_returns_empty_on_error(cache_path_service):
+    with patch("core.services.cache.CachePathService.Path", side_effect=OSError("boom")), \
+            patch.object(cache_path_service.logger, "error") as mock_error:
+        assert cache_path_service.get_missing_caches("/x/y.xml") == []
+        mock_error.assert_called_once()
+
+
+def test_update_cache_paths_updates_loaders_when_thumbnails_exist(cache_path_service, tmp_path):
+    thumbs = tmp_path / ".thumbnails"
+    thumbs.mkdir()
+    mock_viewer = MagicMock()
+    mock_viewer.gallery_controller.model.thumbnail_loader = MagicMock()
+    mock_viewer.thumbnail_controller.loader = MagicMock()
+
+    cache_path_service.update_cache_paths(tmp_path, mock_viewer)
+
+    mock_viewer.gallery_controller.model.thumbnail_loader.set_dataset_cache_dir.assert_called_once_with(
+        str(thumbs)
+    )
+    assert mock_viewer.thumbnail_controller.alternative_cache_dir == str(tmp_path)
+    assert mock_viewer.thumbnail_controller.loader.results_dir == str(tmp_path)
+
+
+def test_update_cache_paths_swallows_errors(cache_path_service):
+    mock_viewer = MagicMock()
+    mock_viewer.gallery_controller = MagicMock()
+    type(mock_viewer.gallery_controller).model = property(lambda self: (_ for _ in ()).throw(RuntimeError("x")))
+    with patch.object(cache_path_service.logger, "error") as mock_error:
+        cache_path_service.update_cache_paths(Path("/tmp"), mock_viewer)
+        mock_error.assert_called_once()

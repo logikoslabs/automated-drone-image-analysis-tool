@@ -185,3 +185,9 @@ def test_suggest_buffer_rounds_up_to_50_step(monkeypatch):
         buf = aoi.suggest_buffer_m([{"path": "a.jpg"}], params=PodParams())
     assert buf == pytest.approx(150.0)
     assert buf % 50.0 == 0
+
+
+def test_image_path_accepts_string_or_empty():
+    assert aoi._image_path("plain.jpg") == "plain.jpg"
+    assert aoi._image_path(None) == ""
+    assert aoi._image_path({"path": "x.jpg"}) == "x.jpg"

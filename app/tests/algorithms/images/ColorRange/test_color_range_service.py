@@ -255,3 +255,18 @@ def test_process_image_mask_storage(color_range_service, test_image):
         if result.areas_of_interest and len(result.areas_of_interest) > 0:
             assert result.output_path is not None
             assert result.output_path.endswith('.tif')
+
+
+def test_process_image_skips_entries_without_color_range(test_image):
+    service = ColorRangeService(
+        identifier=(110, 160, 210),
+        min_area=10,
+        max_area=0,
+        aoi_radius=5,
+        combine_aois=False,
+        options={'color_ranges': [{'name': 'empty'}, {'color_range': [(100, 150, 200), (120, 170, 220)]}]},
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = service.process_image(
+            test_image, os.path.join(tmpdir, "t.jpg"), tmpdir, os.path.join(tmpdir, "out"))
+    assert isinstance(result, AnalysisResult)

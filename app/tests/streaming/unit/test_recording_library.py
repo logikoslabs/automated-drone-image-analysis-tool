@@ -126,3 +126,17 @@ class TestRecent:
         library._settings.setValue("library/recent", "{not json")
 
         assert library.recent() == []
+
+
+def test_first_video_in_missing_dir_returns_none(tmp_path):
+    assert RecordingLibrary.first_video_in(str(tmp_path / "gone")) is None
+
+
+def test_first_video_in_empty_dir_returns_none(tmp_path):
+    assert RecordingLibrary.first_video_in(str(tmp_path)) is None
+
+
+def test_first_video_in_picks_sorted_mp4(tmp_path):
+    (tmp_path / "b.mp4").write_bytes(b"x")
+    (tmp_path / "a.mp4").write_bytes(b"x")
+    assert RecordingLibrary.first_video_in(str(tmp_path)).endswith("a.mp4")

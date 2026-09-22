@@ -69,3 +69,20 @@ def test_save_settings_strips_whitespace(pdf_settings_service):
 
     assert settings['organization'] == 'Test Org'
     assert settings['search_name'] == 'Test Search'
+
+
+def test_load_settings_returns_defaults_on_corrupt_json(pdf_settings_service):
+    with open(pdf_settings_service.config_path, 'w') as f:
+        f.write('{not-valid-json')
+    settings = pdf_settings_service.load_settings()
+    assert settings == {
+        'organization': '',
+        'search_name': '',
+        'include_images_without_flagged_aois': False,
+        'map_tile_source': 'map',
+    }
+
+
+def test_save_settings_returns_false_on_write_failure(pdf_settings_service):
+    with patch('builtins.open', side_effect=OSError('disk full')):
+        assert pdf_settings_service.save_settings('Org', 'Search') is False
