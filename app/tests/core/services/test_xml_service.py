@@ -519,3 +519,94 @@ def test_xml_path_attribute_preserved_for_legacy_cache_lookups(tmp_path):
     xml_path = _xml_with_image_path(tmp_path, r"C:\Flight1\DJI_0042.JPG")
     images = XmlService(str(xml_path)).get_images()
     assert images[0]["xml_path"] == r"C:\Flight1\DJI_0042.JPG"
+
+
+# ---------------------------------------------------------------------------
+# Bearing / review / team planning persistence
+# ---------------------------------------------------------------------------
+
+def test_image_bearing_round_trips_through_save_reload(tmp_path, sample_xml):
+    """Bearings must survive save/reload — FOV and coverage depend on them."""
+    service = XmlService(sample_xml)
+    image_path = service.get_images()[0]["path"]
+
+    assert service.set_image_bearing(image_path, 96.5, source="kml", quality="good")
+    assert service.set_image_bearing("nonexistent.jpg", 10.0) is False
+
+    out = tmp_path / "with_bearing.xml"
+    service.save_xml_file(out)
+
+    reloaded = XmlService(out)
+    bearing = reloaded.get_image_bearing(reloaded.get_images()[0]["path"])
+    assert bearing == {"bearing": 96.5, "source": "kml", "quality": "good"}
+    assert reloaded.get_image_bearing(reloaded.get_images()[1]["path"]) is None
+
+
+def test_set_multiple_bearings_updates_matching_images(sample_xml):
+    service = XmlService(sample_xml)
+    images = service.get_images()
+    result = type("BR", (), {"bearing_deg": 45.0, "source": "gpx", "quality": "good"})()
+    missing = type("BR", (), {"bearing_deg": 1.0, "source": "gpx", "quality": "gap"})()
+
+    updated = service.set_multiple_bearings({
+        images[0]["path"]: result,
+        "missing.jpg": missing,
+    })
+    assert updated == 1
+    got = service.get_image_bearing(images[0]["path"])
+    assert got["bearing"] == 45.0
+    assert got["source"] == "gpx"
+
+
+def test_ensure_review_id_creates_and_reuses(tmp_path, sample_xml):
+    service = XmlService(sample_xml)
+    assert service.get_review_metadata() is None
+
+    first = service.ensure_review_id()
+    assert first
+    meta = service.get_review_metadata()
+    assert meta["review_id"] == first
+    assert meta["review_date"]
+
+    second = service.ensure_review_id()
+    assert second == first
+
+    service.add_review_metadata(first, "Operator A", "2026-09-22T12:00:00")
+    out = tmp_path / "reviewed.xml"
+    service.save_xml_file(out)
+
+    reloaded = XmlService(out).get_review_metadata()
+    assert reloaded["review_id"] == first
+    assert reloaded["reviewer_name"] == "Operator A"
+    assert reloaded["review_date"] == "2026-09-22T12:00:00"
+
+
+def test_team_planning_round_trips_and_aoi_team_assignment(tmp_path, sample_xml):
+    service = XmlService(sample_xml)
+    teams = [
+        {"name": "Alpha", "color": "#ff0000"},
+        {"name": "Bravo", "color": "#00ff00"},
+    ]
+    service.save_team_planning(teams)
+    assert service.get_team_planning() == teams
+
+    # Replace with a single team, then clear.
+    service.save_team_planning([{"name": "Solo", "color": "#0000ff"}])
+    assert service.get_team_planning() == [{"name": "Solo", "color": "#0000ff"}]
+    service.save_team_planning([])
+    assert service.get_team_planning() == []
+
+    images = service.get_images()
+    service.save_aoi_team(0, 0, "Alpha", images)
+    assert images[0]["areas_of_interest"][0]["team"] == "Alpha"
+    xml_el = images[0]["areas_of_interest"][0]["xml"]
+    assert xml_el.get("team") == "Alpha"
+
+    service.save_aoi_team(0, 0, "", images)
+    assert "team" not in images[0]["areas_of_interest"][0]
+    assert "team" not in xml_el.attrib
+
+    out = tmp_path / "teams.xml"
+    service.save_team_planning(teams)
+    service.save_xml_file(out)
+    assert XmlService(out).get_team_planning() == teams

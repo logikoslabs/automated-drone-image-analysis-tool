@@ -944,3 +944,70 @@ class TestAnchoredAglResolution:
 
         assert ctx['altitude_anchored'] is False
         assert ctx['drone_absolute_elev_m'] == pytest.approx(384.7, abs=0.1)
+
+
+# ---------------------------------------------------------------------------
+# Terrain AGL display + per-pixel GSD (operator-facing scale / clearance)
+# ---------------------------------------------------------------------------
+
+class TestTerrainAglDisplay:
+    def test_use_terrain_false_returns_none(self, image_service_with_img_array):
+        assert image_service_with_img_array.get_terrain_agl(use_terrain=False) is None
+
+    def test_missing_img_array_returns_none(self, image_service):
+        image_service.img_array = None
+        assert image_service.get_terrain_agl() is None
+
+    def test_metres_and_feet_from_effective_agl(self, image_service_with_img_array):
+        service = image_service_with_img_array
+        service.get_effective_agl_at_pixel = MagicMock(return_value=50.0)
+        assert service.get_terrain_agl(distance_unit='m') == pytest.approx(50.0)
+        assert service.get_terrain_agl(distance_unit='ft') == pytest.approx(164.04, abs=0.02)
+        assert service.get_effective_agl_at_pixel.call_args.kwargs['offline_only'] is True
+
+    def test_none_effective_agl_returns_none(self, image_service_with_img_array):
+        service = image_service_with_img_array
+        service.get_effective_agl_at_pixel = MagicMock(return_value=None)
+        assert service.get_terrain_agl() is None
+
+    def test_exception_from_effective_agl_returns_none(self, image_service_with_img_array):
+        service = image_service_with_img_array
+        service.get_effective_agl_at_pixel = MagicMock(side_effect=RuntimeError("dem down"))
+        assert service.get_terrain_agl() is None
+
+
+class TestComputeGsdAtPixel:
+    def test_no_gsd_service_returns_none(self, image_service):
+        image_service.get_gsd_service = MagicMock(return_value=None)
+        assert image_service.compute_gsd_at_pixel(10, 10) is None
+
+    def test_use_terrain_false_uses_flat_gsd(self, image_service):
+        gsd = MagicMock()
+        gsd.compute_gsd.return_value = 1.25
+        image_service.get_gsd_service = MagicMock(return_value=gsd)
+        assert image_service.compute_gsd_at_pixel(5, 7, use_terrain=False) == 1.25
+        gsd.compute_gsd.assert_called_once_with(7, 5)
+        image_service._effective_agl_at_pixel = MagicMock()
+        # Flat path must not touch DEM.
+        image_service.compute_gsd_at_pixel(5, 7, use_terrain=False)
+        image_service._effective_agl_at_pixel.assert_not_called()
+
+    def test_non_positive_effective_agl_falls_back_to_flat(self, image_service):
+        gsd = MagicMock()
+        gsd.compute_gsd.return_value = 2.0
+        image_service.get_gsd_service = MagicMock(return_value=gsd)
+        image_service._effective_agl_at_pixel = MagicMock(return_value=0.0)
+        assert image_service.compute_gsd_at_pixel(1, 2) == 2.0
+        # Fallback call has no altitude_override.
+        assert gsd.compute_gsd.call_args == ((2, 1),)
+
+    def test_positive_effective_agl_overrides_altitude(self, image_service):
+        gsd = MagicMock()
+        gsd.compute_gsd.return_value = 0.8
+        image_service.get_gsd_service = MagicMock(return_value=gsd)
+        image_service._effective_agl_at_pixel = MagicMock(return_value=71.5)
+        assert image_service.compute_gsd_at_pixel(10, 20) == 0.8
+        gsd.compute_gsd.assert_called_with(20, 10, altitude_override=71.5)
+
+    def test_get_effective_agl_at_pixel_respects_use_terrain_flag(self, image_service):
+        assert image_service.get_effective_agl_at_pixel(0, 0, use_terrain=False) is None

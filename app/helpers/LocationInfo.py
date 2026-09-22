@@ -21,6 +21,7 @@ class LocationInfo:
         Returns:
             dict: Contains the decimal latitude and longitude values from the GPS data.
         """
+        exif_dict = None
         if full_path:
             try:
                 with Image.open(full_path) as img:
@@ -30,7 +31,8 @@ class LocationInfo:
                 return {}
             exif_dict = MetaDataHelper.get_exif_data_piexif(full_path)
 
-        if exif_data:
+        # Explicit exif_data wins (including {}) so callers can probe without a file.
+        if exif_data is not None:
             exif_dict = exif_data
 
         if not exif_dict or 'GPS' not in exif_dict or not exif_dict['GPS']:
